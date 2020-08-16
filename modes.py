@@ -18,6 +18,13 @@ def initialize(r_core, index, k, parallelize=False):
         parallel = True
         pool = Pool(initializer=initialize, initargs=fiber)
 
+def iterated_task(task, stuff):
+    if parallel:
+        res = pool.map(task, stuff)
+    else:
+        res = list(map(task, stuff))
+    return res
+
 def field(r, y, b, l):
     f, g = y
     r_core, index, k = fiber
@@ -54,12 +61,7 @@ def find_bzeros(l, init, b_min, b_max, m_max):
     npts = 5*m_max
     bzeros = []
     bs = np.linspace(b_max, b_min, npts)
-    if parallel:
-        res = pool.map(lambda b: root_func(b, l, init, tol), bs)
-    else:
-        res = []
-        for b in bs:
-            res.append(root_func(b, l, init, tol))
+    res = iterated_task(lambda b: root_func(b, l, init, tol), bs)
     for idx in range(1, npts):
         if res[idx-1]*res[idx] < 0:
             bzeros.append(bs[idx-1])
@@ -94,12 +96,7 @@ def find_modes():
     while True:
         init = find_init(l, b_min)
         bzeros = find_bzeros(l, init, b_min, b_max, m_max)
-        if parallel:
-            res = pool.map(lambda b: solve_mode(b, b_min, b_max, l, init), bzeros)
-        else:
-            res = []
-            for b in bzeros:
-                res.append(solve_mode(b, b_min, b_max, l, init))
+        res = iterated_task(lambda b: solve_mode(b, b_min, b_max, l, init), bzeros)
         if len(res) > 0:
             b_max = res[0][0]
             m_max = len(res)

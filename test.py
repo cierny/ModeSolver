@@ -1,5 +1,6 @@
 import numpy as np
 import modes as md
+import time
 
 r_core = 25
 n_clad = 1.45
@@ -12,7 +13,9 @@ def index(r):
         return n_clad
 
 if __name__ == '__main__':
+    start_time = time.time()
     md.initialize(r_core, index, 2*np.pi/wl, True)
     modes = md.find_modes()
     print(len(modes))
     # print(md.lp01_mfd(r_core, index, 2*np.pi/wl))
+    print("--- %s seconds ---" % (time.time() - start_time))
