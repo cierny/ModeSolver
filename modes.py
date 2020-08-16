@@ -19,22 +19,18 @@ def initialize(r_core, index, k, parallelize=False):
         pool = Pool(initializer=initialize, initargs=fiber)
 
 def iterated_task(task, stuff):
-    if parallel:
-        res = pool.map(task, stuff)
-    else:
-        res = list(map(task, stuff))
-    return res
+    return pool.map(task, stuff) if parallel else list(map(task, stuff))
 
 def field(r, y, b, l):
     f, g = y
     r_core, index, k = fiber
     return [g, -g/r -f*((k*index(r))**2-(l/r)**2-b**2)]
 
-def root_func(b, l, init, tol=1e-6):
+def root_func(b, l, init):
     r_core, index, k = fiber
     r0, y0, dy0 = init
     w = np.sqrt(b**2 - (index(r_core)*k)**2)
-    tester = solve_ivp(field, [r0, r_core], [y0, dy0], args=(b, l), rtol=tol)
+    tester = solve_ivp(field, [r0, r_core], [y0, dy0], args=(b, l))
     corr = tester.y[0, -1] / kn(l, r_core*w)
     return tester.y[1, -1] + 0.5*corr*w*(kn(l-1, r_core*w)+kn(l+1, r_core*w))
 
@@ -57,25 +53,23 @@ def find_init(l, b_min):
     return r0, y0, dy0
 
 def find_bzeros(l, init, b_min, b_max, m_max):
-    tol = 1e-2
     npts = 5*m_max
     bzeros = []
     bs = np.linspace(b_max, b_min, npts)
-    res = iterated_task(lambda b: root_func(b, l, init, tol), bs)
+    res = iterated_task(lambda b: root_func(b, l, init), bs)
     for idx in range(1, npts):
         if res[idx-1]*res[idx] < 0:
             bzeros.append(bs[idx-1])
     return bzeros
 
 def solve_mode(bz, b_min, b_max, l, init):
-    tol = 1e-6
     npts = 200
     r_core, index, k = fiber
     r0, y0, dy0 = init
     rz = np.arange(0, r0, r_core/npts)
     rs = np.linspace(r0, r_core, npts)
     beta = least_squares(root_func, bz, bounds=(b_min, b_max), args=(l, init)).x[0]
-    core = solve_ivp(field, [r0, r_core], [y0, dy0], args=(beta, l), rtol=tol, t_eval=rs)
+    core = solve_ivp(field, [r0, r_core], [y0, dy0], args=(beta, l), t_eval=rs)
     r_full = np.concatenate((rz, rs[1:]))
     y_full = np.concatenate((np.repeat(y0, len(rz)), core.y[0, 1:]))
     core_fit = splrep(r_full, y_full / np.max(y_full))
