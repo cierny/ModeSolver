@@ -111,12 +111,6 @@ def lp01_mfd(r_core, index, k):
     beta, fit = solve_mode(b_max, b_min, b_max, 0, find_init(0, b_min))
     return mfd(fit)
 
-def cross_coupling(bounds, tol, psf, psf_res, fib_res, mode, l):
-    cross_int = lambda r,t: r*mode(r)*np.cos(l*t)*psf(np.sqrt(r**2+r0**2-2*r*r0*np.cos(t)))
-    fib_int = lambda r,t: r*(mode(r)*np.cos(l*t))**2
-    cross_res = dblquad(cross_int, *bounds, epsrel=eps)[0]
-    fib_res = dblquad(fib, *bnd, epsrel=eps)[0]
-
 def coupling(psf, modes, rs, r_max, bend=None, tol=100):
     r_core, index, k = fiber
     bounds = [0, 2*np.pi, 0, r_max]
