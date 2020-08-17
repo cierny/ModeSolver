@@ -1,6 +1,6 @@
 import numpy as np
 from pathos.multiprocessing import _ProcessPool as Pool
-from scipy.integrate import solve_ivp, quad
+from scipy.integrate import solve_ivp, quad, dblquad
 from scipy.interpolate import splrep, splev
 from scipy.optimize import least_squares
 from scipy.special import kn
@@ -110,3 +110,34 @@ def lp01_mfd(r_core, index, k):
     b_min = k*index(r_core) + 1e-10
     beta, fit = solve_mode(b_max, b_min, b_max, 0, find_init(0, b_min))
     return mfd(fit)
+
+def cross_coupling(bounds, tol, psf, psf_res, fib_res, mode, l):
+    cross_int = lambda r,t: r*mode(r)*np.cos(l*t)*psf(np.sqrt(r**2+r0**2-2*r*r0*np.cos(t)))
+    fib_int = lambda r,t: r*(mode(r)*np.cos(l*t))**2
+    cross_res = dblquad(cross_int, *bounds, epsrel=eps)[0]
+    fib_res = dblquad(fib, *bnd, epsrel=eps)[0]
+
+def coupling(psf, modes, rs, r_max, bend=None, tol=100):
+    r_core, index, k = fiber
+    bounds = [0, 2*np.pi, 0, r_max]
+    if bend != None:
+        e1 = index(r_core)**2
+        e2 = index(0)**2
+        modes = list(filter(lambda m: ((m[1]*bend/(k*(bend+r_core)))**2-e1)/(e2-e1) > 0, modes))
+    results = np.zeros(len(rs))
+    psf_int = lambda r: r*psf(r)**2
+    psf_res = 2*np.pi*quad(psf_int, 0, r_max)[0]
+    def fib_task(mode):
+        lm, beta, fit = mode
+        return dblquad(lambda r,t: r*(fit(r)*np.cos(lm[0]*t))**2, *bounds, epsabs=tol)[0]
+    fib_res = iterated_task(fib_task, modes)
+    def cross_task(fit, l, mode_res, r0):
+        cross_int = lambda r,t: r*fit(r)*np.cos(l*t)*psf(np.sqrt(r**2+r0**2-2*r*r0*np.cos(t)))
+        cross_res = dblquad(cross_int, *bounds, epsabs=tol)[0]
+        ni = cross_res**2/(psf_res*mode_res)
+        return ni if l==0 else ni/2
+    for idx, mode in enumerate(modes):
+        lm, beta, fit = mode
+        c_task = lambda r: cross_task(fit, lm[0], fib_res[idx], r)
+        results = results + np.array(iterated_task(c_task, rs))
+    return results
