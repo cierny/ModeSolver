@@ -78,13 +78,16 @@ def solve_mode(bz, b_min, b_max, l, init):
     fit = lambda r: np.where(r < r_core, splev(r, core_fit), clad_fac*kn(l, r*w))
     return beta, fit
 
-def find_modes():
+def find_modes(bend=1e6):
     if fiber == None:
         raise Exception('Fiber not initialized')
     r_core, index, k = fiber
     m_max = 20
     b_max = k*index(0)
     b_min = k*index(r_core) + 1e-10
+    mult = bend/(bend+r_core)
+    e1 = index(r_core)**2
+    e2 = index(0)**2
     modes = []
     l = 0
     while True:
@@ -95,7 +98,9 @@ def find_modes():
             b_max = res[0][0]
             m_max = len(res)
             for m, sol in enumerate(res):
-                modes.append(((l,m+1), sol[0], sol[1]))
+                beta, fit = sol
+                if ((beta*mult/k)**2-e1)/(e2-e1) > 0:
+                    modes.append(((l,m+1), beta, fit))
             l = l + 1
         else:
             return modes
@@ -113,13 +118,8 @@ def lp01(r_core, index, k):
     sigma_fit = curve_fit(lambda r,s: np.exp(-r**2/(2*s**2)), rs, fit(rs)**2)[0][0]
     return fit, mfd(fit), 4*sigma_fit
 
-def coupling(psf_re, psf_im, modes, rs, r_max, bend=None, tol=1e-1):
-    r_core, index, k = fiber
+def coupling(psf_re, psf_im, modes, rs, r_max, tol=1e-1):
     bounds = [0, 2*np.pi, 0, r_max]
-    if bend != None:
-        e1 = index(r_core)**2
-        e2 = index(0)**2
-        modes = list(filter(lambda m: ((m[1]*bend/(k*(bend+r_core)))**2-e1)/(e2-e1) > 0, modes))
     results = np.zeros(len(rs))
     psf_int = lambda r: r*(psf_re(r)**2 + psf_im(r)**2)
     psf_res = 2*np.pi*quad(psf_int, 0, r_max, epsabs=tol)[0]

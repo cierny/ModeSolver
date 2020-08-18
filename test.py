@@ -47,6 +47,8 @@ def read_psf(filename):
     return np.array(r_samp), np.array(p_samp)
 
 if __name__ == '__main__':
+    f_col = 15.3919e-3
+    dr_max = f_col*mag*paa*1e6
     r_im, p_im = read_psf('fft_im.txt')
     r_re, p_re = read_psf('fft_re.txt')
     psf_im = InterpolatedUnivariateSpline(r_im, p_im, ext=1)
@@ -61,7 +63,7 @@ if __name__ == '__main__':
     print('MFD (fit): %f' % mfd2)
 
     tick = time.time()
-    rs = np.linspace(0, 10, 50)
+    rs = np.linspace(0, dr_max, 50)
     res = md.coupling(psf_re, psf_im, modes, rs, np.inf)
     # print('Coupling: %f' % res[0])
     print("--- %s seconds ---" % (time.time() - tick))
