@@ -113,7 +113,7 @@ def lp01(r_core, index, k):
     sigma_fit = curve_fit(lambda r,s: np.exp(-r**2/(2*s**2)), rs, fit(rs)**2)[0][0]
     return fit, mfd(fit), 4*sigma_fit
 
-def coupling(psf_re, psf_im, modes, rs, r_max, bend=None, tol=1e-3):
+def coupling(psf_re, psf_im, modes, rs, r_max, bend=None, tol=1e-1):
     r_core, index, k = fiber
     bounds = [0, 2*np.pi, 0, r_max]
     if bend != None:

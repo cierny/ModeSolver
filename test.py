@@ -1,6 +1,7 @@
 import numpy as np
 import modes as md
 from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.optimize import curve_fit
 import time
 
 r_core = 2.2
@@ -58,12 +59,10 @@ if __name__ == '__main__':
     fit, mfd1, mfd2 = md.lp01(r_core, index, 2*np.pi/wl_rx)
     print('MFD (s2x): %f' % mfd1)
     print('MFD (fit): %f' % mfd2)
-    print('NA (s2x): %f' % np.sin((2*wl_rx)/(np.pi*mfd1)))
-    print('NA (fit): %f' % np.sin((2*wl_rx)/(np.pi*mfd2)))
 
     tick = time.time()
-    # rs = np.linspace(0, 10, 100)
-    res = md.coupling(psf_re, psf_im, modes, [0], np.inf)
-    print('Coupling: %f' % res[0])
-    # print("--- %s seconds ---" % (time.time() - tick))
-    # np.save('res', res)
+    rs = np.linspace(0, 10, 50)
+    res = md.coupling(psf_re, psf_im, modes, rs, np.inf)
+    # print('Coupling: %f' % res[0])
+    print("--- %s seconds ---" % (time.time() - tick))
+    np.save('res', res)
