@@ -122,7 +122,7 @@ def coupling(psf_re, psf_im, modes, rs, r_max, bend=None, tol=1e-3):
         modes = list(filter(lambda m: ((m[1]*bend/(k*(bend+r_core)))**2-e1)/(e2-e1) > 0, modes))
     results = np.zeros(len(rs))
     psf_int = lambda r: r*(psf_re(r)**2 + psf_im(r)**2)
-    psf_res = 2*np.pi*quad(psf_int, 0, r_max)[0]
+    psf_res = 2*np.pi*quad(psf_int, 0, r_max, epsabs=tol)[0]
     def fib_task(mode):
         lm, beta, fit = mode
         return dblquad(lambda r,t: r*(fit(r)*np.cos(lm[0]*t))**2, *bounds, epsabs=tol)[0]
