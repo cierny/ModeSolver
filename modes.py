@@ -2,7 +2,7 @@ import numpy as np
 from pathos.multiprocessing import _ProcessPool as Pool
 from scipy.integrate import solve_ivp, quad, dblquad
 from scipy.interpolate import splrep, splev
-from scipy.optimize import least_squares
+from scipy.optimize import least_squares, curve_fit
 from scipy.special import kn
 
 parallel = False
@@ -104,14 +104,16 @@ def mfd(mode):
     s2x = quad(lambda r: (r*mode(r))**2, 0, np.inf)[0] / quad(lambda r: mode(r)**2, 0, np.inf)[0]
     return 4*np.sqrt(s2x)
 
-def lp01_mfd(r_core, index, k):
+def lp01(r_core, index, k):
     initialize(r_core, index, k)
     b_max = k*index(0)
     b_min = k*index(r_core) + 1e-10
     beta, fit = solve_mode(b_max, b_min, b_max, 0, find_init(0, b_min))
-    return mfd(fit)
+    rs = np.linspace(0, 2*r_core, 100)
+    sigma_fit = curve_fit(lambda r,s: np.exp(-r**2/(2*s**2)), rs, fit(rs)**2)[0][0]
+    return fit, mfd(fit), 4*sigma_fit
 
-def coupling(psf, modes, rs, r_max, bend=None, tol=100):
+def coupling(psf_re, psf_im, modes, rs, r_max, bend=None, tol=1e-3):
     r_core, index, k = fiber
     bounds = [0, 2*np.pi, 0, r_max]
     if bend != None:
@@ -119,16 +121,18 @@ def coupling(psf, modes, rs, r_max, bend=None, tol=100):
         e2 = index(0)**2
         modes = list(filter(lambda m: ((m[1]*bend/(k*(bend+r_core)))**2-e1)/(e2-e1) > 0, modes))
     results = np.zeros(len(rs))
-    psf_int = lambda r: r*psf(r)**2
+    psf_int = lambda r: r*(psf_re(r)**2 + psf_im(r)**2)
     psf_res = 2*np.pi*quad(psf_int, 0, r_max)[0]
     def fib_task(mode):
         lm, beta, fit = mode
         return dblquad(lambda r,t: r*(fit(r)*np.cos(lm[0]*t))**2, *bounds, epsabs=tol)[0]
     fib_res = iterated_task(fib_task, modes)
     def cross_task(fit, l, mode_res, r0):
-        cross_int = lambda r,t: r*fit(r)*np.cos(l*t)*psf(np.sqrt(r**2+r0**2-2*r*r0*np.cos(t)))
-        cross_res = dblquad(cross_int, *bounds, epsabs=tol)[0]
-        ni = cross_res**2/(psf_res*mode_res)
+        cross_int_re = lambda r,t: r*fit(r)*np.cos(l*t)*psf_re(np.sqrt(r**2+r0**2-2*r*r0*np.cos(t)))
+        cross_int_im = lambda r,t: r*fit(r)*np.cos(l*t)*psf_im(np.sqrt(r**2+r0**2-2*r*r0*np.cos(t)))
+        cross_res_re = dblquad(cross_int_re, *bounds, epsabs=tol)[0]**2
+        cross_res_im = dblquad(cross_int_im, *bounds, epsabs=tol)[0]**2
+        ni = (cross_res_re + cross_res_im)/(psf_res*mode_res)
         return ni if l==0 else ni/2
     for idx, mode in enumerate(modes):
         lm, beta, fit = mode
