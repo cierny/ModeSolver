@@ -114,7 +114,9 @@ def lp01(r_core, index, k):
     initialize(r_core, index, k)
     b_max = k*index(0)
     b_min = k*index(r_core) + 1e-10
-    r0, beta, fit = solve_mode(b_max, b_min, b_max, 0, find_init(0, b_min))
+    init = find_init(0, b_min)
+    bz = find_bzeros(0, init, b_min, b_max, 20)[0]
+    r0, beta, fit = solve_mode(bz, b_min, b_max, 0, init)
     rs = np.linspace(0, 2*r_core, 100)
     sigma_fit = curve_fit(lambda r,s: np.exp(-r**2/(2*s**2)), rs, fit(rs)**2)[0][0]
     return fit, mfd(fit), 4*sigma_fit
