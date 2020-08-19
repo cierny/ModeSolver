@@ -4,32 +4,32 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.optimize import curve_fit
 import time
 
-r_core = 2.2
+r_core = 25
 n_clad = 1.45
 wl_tx = 0.78
 wl_rx = 0.98
 
 R = 30e3
 w0 = 1.5e3
-mag = 19
+mag = 20
 paa = 50e-6
 
-cut = 0.73
-NA = cut*2.405/(2*np.pi*r_core);
-
-n_core = np.sqrt(n_clad**2 + NA**2)
+# cut = 0.73
+# NA = cut*2.405/(2*np.pi*r_core);
+#
+# n_core = np.sqrt(n_clad**2 + NA**2)
+#
+# def index(r):
+#     if r < r_core:
+#         return n_core
+#     else:
+#         return n_clad
 
 def index(r):
     if r < r_core:
-        return n_core
+        return n_clad + 0.0145*(1 - (r/r_core)**2)
     else:
         return n_clad
-
-# def index(r):
-#     if r < r_core:
-#         return n_clad + 0.0145*(1 - (r/r_core)**2)
-#     else:
-#         return n_clad
 
 def read_psf(filename):
     r_samp = []
@@ -52,7 +52,7 @@ def read_psf(filename):
     return np.array(r_samp), np.array(p_samp)
 
 if __name__ == '__main__':
-    f_col = 15.8274
+    f_col = 33.1131
     dr_max = f_col*mag*paa*1e3
     r_im, p_im = read_psf('achromat_im.txt')
     r_re, p_re = read_psf('achromat_re.txt')
@@ -74,4 +74,4 @@ if __name__ == '__main__':
     rs = np.linspace(0, dr_max, 50)
     res = md.coupling(psf_re, psf_im, psf_max, modes, rs, 10*r_core)
     print("--- %s seconds ---" % (time.time() - tick))
-    np.save('res_smf', np.vstack((rs,res)))
+    np.save('res_grin25', np.vstack((rs,res)))
