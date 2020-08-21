@@ -69,7 +69,7 @@ def solve_mode(bz, b_min, b_max, l, init):
     rz = np.arange(0, r0, r_core/npts)
     yz = np.linspace(1 if l==0 else 0, y0, len(rz))
     rs = np.linspace(r0, r_core, npts)
-    beta = least_squares(root_func, bz, bounds=(b_min, b_max), args=(l, init)).x[0]
+    beta = least_squares(root_func, bz, bounds=(b_min, b_max), args=(l, init), method='dogbox', xtol=None, max_nfev=10).x[0]
     core = solve_ivp(field, [r0, r_core], [y0, dy0], args=(beta, l), t_eval=rs)
     r_full = np.concatenate((rz, rs[1:]))
     y_full = np.concatenate((yz, core.y[0, 1:]))
