@@ -4,7 +4,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.optimize import curve_fit
 import time
 
-r_core = 30
+r_core = 25
 n_clad = 1.45
 wl_tx = 0.78
 wl_rx = 0.98
@@ -51,7 +51,7 @@ def read_psf(filename):
     return np.array(r_samp), np.array(p_samp)
 
 if __name__ == '__main__':
-    f_col = 36.57
+    f_col = 33.5267
     dr_max = f_col*mag*paa*1e3
     r_im, p_im = read_psf('psf_im.txt')
     r_re, p_re = read_psf('psf_re.txt')
@@ -59,6 +59,7 @@ if __name__ == '__main__':
     psf_im = InterpolatedUnivariateSpline(r_im, p_im, ext=1)
     psf_re = InterpolatedUnivariateSpline(r_re, p_re, ext=1)
 
+    # print(n_core)
     tick = time.time()
     fit, mfd1, mfd2 = md.lp01(r_core, index, 2*np.pi/wl_tx)
     print('Tx w0 (s2x): %f' % (mfd1/2000))
@@ -71,6 +72,6 @@ if __name__ == '__main__':
     print('Rx modes: %d' % len(modes))
 
     rs = np.linspace(0, dr_max, 50)
-    res = md.coupling(psf_re, psf_im, psf_max, modes, rs, 10*r_core)
+    res = md.coupling(psf_re, psf_im, psf_max, modes, rs, 10*r_core, atol=1)
     print("--- %s seconds ---" % (time.time() - tick))
-    np.save('res_grin30', np.vstack((rs,res)))
+    np.save('res_grin25', np.vstack((rs,res)))
