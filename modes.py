@@ -1,5 +1,4 @@
 import numpy as np
-from pathos.multiprocessing import _ProcessPool as Pool
 from scipy.integrate import solve_ivp, quad, dblquad
 from scipy.interpolate import splrep, splev
 from scipy.optimize import least_squares, curve_fit
@@ -9,23 +8,28 @@ parallel = False
 fiber = None
 pool = None
 
+# Initialize fiber parameters
 def initialize(r_core, index, k, parallelize=False):
     global fiber
     fiber = (r_core, index, k)
     if parallelize:
+        from pathos.multiprocessing import _ProcessPool
         global parallel
         global pool
         parallel = True
-        pool = Pool(initializer=initialize, initargs=fiber)
+        pool = _ProcessPool(initializer=initialize, initargs=fiber)
 
+# Parallel iteration helper
 def iterated_task(task, stuff):
     return pool.map(task, stuff) if parallel else list(map(task, stuff))
 
+# Defines the field differential equation for the numerical solver
 def field(r, y, b, l):
     f, g = y
     r_core, index, k = fiber
     return [g, -g/r -f*((k*index(r))**2-(l/r)**2-b**2)]
 
+# Field mismatch at boundary between core and cladding, a valid mode returns exactly zero (i.e. root)
 def root_func(b, l, init):
     r_core, index, k = fiber
     r0, y0, dy0 = init
@@ -34,6 +38,7 @@ def root_func(b, l, init):
     corr = tester.y[0, -1] / kn(l, r_core*w)
     return tester.y[1, -1] + 0.5*corr*w*(kn(l-1, r_core*w)+kn(l+1, r_core*w))
 
+# Find numerically stable initial conditions for the differential equation
 def find_init(l, b_min):
     r0 = 1e-10
     y0 = 1
@@ -52,6 +57,7 @@ def find_init(l, b_min):
             r0 = 10**(c2/(c2-c3) - 10)
     return r0, y0, dy0
 
+# Find all zero-crossings in the root function
 def find_bzeros(l, init, b_min, b_max, m_max):
     npts = 5*m_max
     bzeros = []
@@ -62,6 +68,7 @@ def find_bzeros(l, init, b_min, b_max, m_max):
             bzeros.append(bs[idx-1])
     return bzeros
 
+# Given zero crossing interval, find the actual root and fit the mode field profile
 def solve_mode(bz, b_min, b_max, l, init):
     npts = 200
     r_core, index, k = fiber
@@ -79,6 +86,7 @@ def solve_mode(bz, b_min, b_max, l, init):
     fit = lambda r: np.where(r < r_core, splev(r, core_fit), clad_fac*kn(l, r*w))
     return r0, beta, fit
 
+# Find all propagating modes using above functions, given a bend radius
 def find_modes(bend=1e6):
     if fiber == None:
         raise Exception('Fiber not initialized')
@@ -106,10 +114,12 @@ def find_modes(bend=1e6):
         else:
             return modes
 
+# Calculate mode field diameter via second moment
 def mfd(mode):
     s2x = quad(lambda r: (r*mode(r))**2, 0, np.inf)[0] / quad(lambda r: mode(r)**2, 0, np.inf)[0]
     return 4*np.sqrt(s2x)
 
+# Shortcut to only calculate fundamental mode directly
 def lp01(r_core, index, k):
     initialize(r_core, index, k)
     b_max = k*index(0)
@@ -121,6 +131,7 @@ def lp01(r_core, index, k):
     sigma_fit = curve_fit(lambda r,s: np.exp(-r**2/(2*s**2)), rs, fit(rs)**2)[0][0]
     return fit, mfd(fit), 4*sigma_fit
 
+# Calculate coupling efficiency of an incident PSF to given modes for given radial displacements using overlap integrals
 def coupling(psf_re, psf_im, psf_max, modes, rs, r_max, rtol=0, atol=1):
     results = np.zeros(len(rs))
     psf_int = lambda r: r*(psf_re(r)**2 + psf_im(r)**2)
